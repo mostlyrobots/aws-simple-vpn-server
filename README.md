@@ -43,7 +43,7 @@ VPN_PASSWORD="changeme"
 
 2. Configure Libreswan:
 ```bash
-sudo bash setup-strongswan.sh
+sudo bash setup-swan.sh
 ```
 
 3. Get Let's Encrypt certificate:
