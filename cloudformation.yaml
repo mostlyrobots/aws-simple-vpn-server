@@ -145,8 +145,8 @@ Resources:
           
           # Download scripts
           cd /root
-          curl -sL https://raw.githubusercontent.com/yourusername/aws-simple-vpn-server/main/setup-strongswan.sh -o setup-strongswan.sh
-          curl -sL https://raw.githubusercontent.com/yourusername/aws-simple-vpn-server/main/setup-letsencrypt.sh -o setup-letsencrypt.sh
+          curl -sL https://raw.githubusercontent.com/mostlyrobots/aws-simple-vpn-server/main/setup-strongswan.sh -o setup-strongswan.sh
+          curl -sL https://raw.githubusercontent.com/mostlyrobots/aws-simple-vpn-server/main/setup-letsencrypt.sh -o setup-letsencrypt.sh
           chmod +x setup-strongswan.sh setup-letsencrypt.sh
           
           # Run setup
