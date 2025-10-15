@@ -134,127 +134,19 @@ Resources:
         Fn::Base64: !Sub |
           #!/bin/bash
           set -e
-          cd /root
           
           # Create config file
-          cat > CONFIG.rc << 'EOFCONFIG'
+          cat > /root/CONFIG.rc << 'EOF'
           VPN_DOMAIN="${VPNDomain}"
           EMAIL="${Email}"
           VPN_USERNAME="${VPNUsername}"
           VPN_PASSWORD="${VPNPassword}"
-          EOFCONFIG
-          
-          # Create setup-strongswan.sh
-          cat > setup-strongswan.sh << 'EOFSTRONGSWAN'
-          #!/bin/bash
-          set -e
-          
-          if [ ! -f "CONFIG.rc" ]; then
-              echo "ERROR: CONFIG.rc not found"
-              exit 1
-          fi
-          source CONFIG.rc
-          
-          dnf install -y strongswan
-          
-          cat > /etc/ipsec.conf << EOF
-          config setup
-              charondebug="ike 1, knl 1, cfg 0"
-              uniqueids=no
-          
-          conn ikev2-vpn
-              auto=add
-              compress=no
-              type=tunnel
-              keyexchange=ikev2
-              fragmentation=yes
-              forceencaps=yes
-              
-              leftcert=fullchain.pem
-              leftid=@${!VPN_DOMAIN}
-              leftsendcert=always
-              leftsubnet=0.0.0.0/0
-              
-              right=%any
-              rightid=%any
-              rightauth=eap-mschapv2
-              rightsourceip=10.10.10.0/24
-              rightdns=8.8.8.8,8.8.4.4
-              
-              ike=aes256-sha256-modp2048,aes256-sha1-modp2048!
-              esp=aes256-sha256,aes256-sha1!
-              
-              eap_identity=%identity
           EOF
           
-          cat > /etc/ipsec.secrets << EOF
-          : RSA privkey.pem
-          
-          ${!VPN_USERNAME} : EAP "${!VPN_PASSWORD}"
-          EOF
-          chmod 600 /etc/ipsec.secrets
-          
-          cat > /etc/sysctl.d/99-vpn.conf << EOF
-          net.ipv4.ip_forward = 1
-          net.ipv4.conf.all.accept_redirects = 0
-          net.ipv4.conf.all.send_redirects = 0
-          EOF
-          sysctl -p /etc/sysctl.d/99-vpn.conf
-          
-          iptables -t nat -A POSTROUTING -s 10.10.10.0/24 -o eth0 -j MASQUERADE
-          iptables -A FORWARD -s 10.10.10.0/24 -j ACCEPT
-          iptables -A FORWARD -d 10.10.10.0/24 -j ACCEPT
-          iptables-save > /etc/sysconfig/iptables
-          
-          systemctl enable strongswan
-          systemctl restart strongswan
-          
-          echo "StrongSwan configured"
-          EOFSTRONGSWAN
-          
-          # Create setup-letsencrypt.sh
-          cat > setup-letsencrypt.sh << 'EOFLETSENCRYPT'
-          #!/bin/bash
-          set -e
-          
-          if [ ! -f "CONFIG.rc" ]; then
-              echo "ERROR: CONFIG.rc not found"
-              exit 1
-          fi
-          source CONFIG.rc
-          
-          dnf install -y certbot
-          
-          cat > /usr/local/bin/certbot-pre-hook.sh << 'EOF'
-          #!/bin/bash
-          iptables -I INPUT 1 -p tcp --dport 443 -j ACCEPT
-          EOF
-          chmod +x /usr/local/bin/certbot-pre-hook.sh
-          
-          cat > /usr/local/bin/certbot-post-hook.sh << 'EOF'
-          #!/bin/bash
-          iptables -D INPUT -p tcp --dport 443 -j ACCEPT
-          cp /etc/letsencrypt/live/*/fullchain.pem /etc/ipsec.d/certs/
-          cp /etc/letsencrypt/live/*/privkey.pem /etc/ipsec.d/private/
-          chmod 600 /etc/ipsec.d/private/privkey.pem
-          ipsec reload
-          EOF
-          chmod +x /usr/local/bin/certbot-post-hook.sh
-          
-          certbot certonly --standalone \
-              --preferred-challenges tls-alpn-01 \
-              -d "$VPN_DOMAIN" \
-              --email "$EMAIL" \
-              --agree-tos \
-              --non-interactive \
-              --pre-hook "/usr/local/bin/certbot-pre-hook.sh" \
-              --post-hook "/usr/local/bin/certbot-post-hook.sh"
-          
-          (crontab -l 2>/dev/null | grep -v certbot-renew; echo "0 3 */45 * * certbot renew --quiet --pre-hook '/usr/local/bin/certbot-pre-hook.sh' --post-hook '/usr/local/bin/certbot-post-hook.sh'"; echo "@reboot sleep 60 && certbot renew --quiet --pre-hook '/usr/local/bin/certbot-pre-hook.sh' --post-hook '/usr/local/bin/certbot-post-hook.sh'") | crontab -
-          
-          echo "Let's Encrypt configured"
-          EOFLETSENCRYPT
-          
+          # Download scripts
+          cd /root
+          curl -sL https://raw.githubusercontent.com/yourusername/aws-simple-vpn-server/main/setup-strongswan.sh -o setup-strongswan.sh
+          curl -sL https://raw.githubusercontent.com/yourusername/aws-simple-vpn-server/main/setup-letsencrypt.sh -o setup-letsencrypt.sh
           chmod +x setup-strongswan.sh setup-letsencrypt.sh
           
           # Run setup
