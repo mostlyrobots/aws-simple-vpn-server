@@ -22,10 +22,10 @@ chmod +x /usr/local/bin/certbot-pre-hook.sh
 cat > /usr/local/bin/certbot-post-hook.sh << 'EOF'
 #!/bin/bash
 iptables -D INPUT -p tcp --dport 443 -j ACCEPT
-cp /etc/letsencrypt/live/*/fullchain.pem /etc/ipsec.d/certs/
-cp /etc/letsencrypt/live/*/privkey.pem /etc/ipsec.d/private/
-chmod 600 /etc/ipsec.d/private/privkey.pem
-ipsec reload
+# Import certificate into NSS database for Libreswan
+certutil -A -n "Let's Encrypt" -t "CT,," -d sql:/etc/ipsec.d -i /etc/letsencrypt/live/*/chain.pem
+pk12util -i /etc/letsencrypt/live/*/fullchain.pem -d sql:/etc/ipsec.d -W ""
+ipsec restart
 EOF
 chmod +x /usr/local/bin/certbot-post-hook.sh
 

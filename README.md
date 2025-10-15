@@ -1,6 +1,6 @@
 # AWS Simple VPN Server
 
-Automated StrongSwan VPN server with Let's Encrypt certificates on Amazon Linux 2023.
+Automated Libreswan VPN server with Let's Encrypt certificates on Amazon Linux 2023.
 
 ## Quick Deploy with CloudFormation
 
@@ -41,7 +41,7 @@ VPN_USERNAME="vpnuser"
 VPN_PASSWORD="changeme"
 ```
 
-2. Configure StrongSwan:
+2. Configure Libreswan:
 ```bash
 sudo bash setup-strongswan.sh
 ```
@@ -78,7 +78,7 @@ sudo bash setup-letsencrypt.sh
 
 - Deploys EC2 instance (t3.micro) with Amazon Linux 2023 in your existing VPC
 - Configures security group for SSH, Let's Encrypt, and IKEv2
-- Installs and configures StrongSwan for IKEv2/EAP
+- Installs and configures Libreswan for IKEv2/EAP
 - Gets Let's Encrypt certificate automatically
 - Sets up automatic certificate renewal
 

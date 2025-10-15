@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: StrongSwan VPN Server with Let's Encrypt
+Description: Libreswan VPN Server with Let's Encrypt
 
 Parameters:
   VpcId:
