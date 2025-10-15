@@ -4,22 +4,22 @@ Automated StrongSwan VPN server with Let's Encrypt certificates on Amazon Linux 
 
 ## Quick Deploy with CloudFormation
 
-1. Update the UserData URLs in `cloudformation.yaml` to point to your GitHub repo (or use local scripts)
-
-2. Deploy the stack:
+1. Deploy the stack (replace VPC and Subnet IDs with your own):
 ```bash
 aws cloudformation create-stack \
   --stack-name vpn-server \
   --template-body file://cloudformation.yaml \
   --parameters \
+    ParameterKey=VpcId,ParameterValue=vpc-xxxxxxxxx \
+    ParameterKey=SubnetId,ParameterValue=subnet-xxxxxxxxx \
     ParameterKey=VPNDomain,ParameterValue=vpn.yourdomain.com \
     ParameterKey=Email,ParameterValue=admin@yourdomain.com \
     ParameterKey=VPNUsername,ParameterValue=vpnuser \
-    ParameterKey=VPNPassword,ParameterValue=YourSecurePassword \
+    ParameterKey=VPNPassword,ParameterValue=$(cat vpnpassword.txt) \
     ParameterKey=KeyName,ParameterValue=your-key-pair
 ```
 
-3. Get the server's public IP:
+2. Get the server's public IP:
 ```bash
 aws cloudformation describe-stacks \
   --stack-name vpn-server \
@@ -27,9 +27,9 @@ aws cloudformation describe-stacks \
   --output text
 ```
 
-4. Point your domain to the server's IP address
+3. Point your domain to the server's IP address
 
-5. Wait 5-10 minutes for setup to complete
+4. Wait 5-10 minutes for setup to complete
 
 ## Manual Setup
 
@@ -76,8 +76,7 @@ sudo bash setup-letsencrypt.sh
 
 ## What it does
 
-- Creates VPC with public subnet
-- Deploys EC2 instance (t3.micro) with Amazon Linux 2023
+- Deploys EC2 instance (t3.micro) with Amazon Linux 2023 in your existing VPC
 - Configures security group for SSH, Let's Encrypt, and IKEv2
 - Installs and configures StrongSwan for IKEv2/EAP
 - Gets Let's Encrypt certificate automatically
@@ -86,5 +85,6 @@ sudo bash setup-letsencrypt.sh
 ## Requirements
 
 - AWS account with EC2 key pair
+- Existing VPC with a public subnet
 - Domain name that you can point to the server's IP
 - Ports required: 22 (SSH), 443 (Let's Encrypt), 500/UDP and 4500/UDP (IKEv2)
