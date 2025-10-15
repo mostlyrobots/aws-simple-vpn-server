@@ -1,0 +1,3 @@
+# Configuration for StrongSwan Let's Encrypt setup
+VPN_DOMAIN="vpn.yourdomain.com"
+EMAIL="admin@yourdomain.com"
