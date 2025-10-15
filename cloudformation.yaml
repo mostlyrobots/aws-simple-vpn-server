@@ -1,0 +1,174 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: StrongSwan VPN Server with Let's Encrypt
+
+Parameters:
+  VPNDomain:
+    Type: String
+    Description: Domain name for VPN server (must point to this server's IP)
+    Default: vpn.yourdomain.com
+  
+  Email:
+    Type: String
+    Description: Email for Let's Encrypt notifications
+    Default: admin@yourdomain.com
+  
+  VPNUsername:
+    Type: String
+    Description: VPN username for authentication
+    Default: vpnuser
+  
+  VPNPassword:
+    Type: String
+    Description: VPN password for authentication
+    NoEcho: true
+    Default: changeme
+  
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: EC2 Key Pair for SSH access
+
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: VPN-VPC
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: VPN-IGW
+
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: !Select [0, !GetAZs '']
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: VPN-PublicSubnet
+
+  RouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: VPN-RouteTable
+
+  DefaultRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId: !Ref RouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  SubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet
+      RouteTableId: !Ref RouteTable
+
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: VPN Server Security Group
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+          Description: SSH
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+          Description: Let's Encrypt TLS-ALPN-01
+        - IpProtocol: udp
+          FromPort: 500
+          ToPort: 500
+          CidrIp: 0.0.0.0/0
+          Description: IKEv2
+        - IpProtocol: udp
+          FromPort: 4500
+          ToPort: 4500
+          CidrIp: 0.0.0.0/0
+          Description: IKEv2 NAT-T
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: VPN-SecurityGroup
+
+  VPNServer:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Sub '{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64}}'
+      InstanceType: t3.micro
+      KeyName: !Ref KeyName
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: true
+          DeviceIndex: 0
+          GroupSet:
+            - !Ref SecurityGroup
+          SubnetId: !Ref PublicSubnet
+      SourceDestCheck: false
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          set -e
+          
+          # Create config file
+          cat > /root/CONFIG.rc << 'EOF'
+          VPN_DOMAIN="${VPNDomain}"
+          EMAIL="${Email}"
+          VPN_USERNAME="${VPNUsername}"
+          VPN_PASSWORD="${VPNPassword}"
+          EOF
+          
+          # Download scripts
+          cd /root
+          curl -sL https://raw.githubusercontent.com/yourusername/aws-simple-vpn-server/main/setup-strongswan.sh -o setup-strongswan.sh
+          curl -sL https://raw.githubusercontent.com/yourusername/aws-simple-vpn-server/main/setup-letsencrypt.sh -o setup-letsencrypt.sh
+          chmod +x setup-strongswan.sh setup-letsencrypt.sh
+          
+          # Run setup
+          bash setup-strongswan.sh
+          bash setup-letsencrypt.sh
+      Tags:
+        - Key: Name
+          Value: VPN-Server
+
+Outputs:
+  ServerPublicIP:
+    Description: VPN Server Public IP
+    Value: !GetAtt VPNServer.PublicIp
+  
+  ServerDNS:
+    Description: Point your domain to this IP
+    Value: !GetAtt VPNServer.PublicIp
+  
+  VPNDomain:
+    Description: VPN Domain Name
+    Value: !Ref VPNDomain
+  
+  VPNUsername:
+    Description: VPN Username
+    Value: !Ref VPNUsername
